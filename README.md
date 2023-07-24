@@ -152,5 +152,5 @@ This repository contains the back-end part of the capstone solo project of the f
 
 📮 Please feel free to ask any questions. 💬
 
-💌[matteoforni.developer@proton.me](mailto:matteoforni.developer@proton.me)📧
+💌[novebeat@proton.me](mailto:novebeat@proton.me)📧
 
