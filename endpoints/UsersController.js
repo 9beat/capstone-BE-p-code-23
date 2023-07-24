@@ -54,33 +54,35 @@ export const userFriends = async (req, res) => {
         // const friends = await UsersModel.aggregate([
         //     { $match: { _id: { $in: user.friends } } }
         // ]);
-        const friends = await Promise.all(
-            user.friends.map((id) => UsersModel.findById(id))
-        )
+        // const friends = await UsersModel.find({ _id: { $in: user.friends } }).lean()
 
-        // extract desired fields from each friend obj
-        const parsedFriends = friends.map(({ 
-            _id,
-            firstName,
-            lastName,
-            email,
-            picturePath,
-            friends,
-            occupation,
-            location
-        }) => { 
-            return { 
-                _id,
-                firstName,
-                lastName,
-                email,
-                picturePath,
-                friends,
-                occupation,
-                location
-        }}) 
+        const friends = await UsersModel.find({ 
+            _id: { $in: user.friends } 
+        }, `_id firstName lastName email picturePath occupation location` ).lean()
+            
+        // // extract desired fields from each friend obj
+        // const parsedFriends = friends.map(({ 
+        //     _id,
+        //     firstName,
+        //     lastName,
+        //     email,
+        //     picturePath,
+        //     friends,
+        //     occupation,
+        //     location
+        // }) => { 
+        //     return { 
+        //         _id,
+        //         firstName,
+        //         lastName,
+        //         email,
+        //         picturePath,
+        //         friends,
+        //         occupation,
+        //         location
+        // }}) 
         
-        res.status(200).json(parsedFriends);
+        res.status(200).json(friends);
     } catch (err) {
         res.status(404).send({ 
             message: `Error retrieving user friends in [UsersController]: ${err.message}`,
@@ -127,60 +129,72 @@ export const toggleFriend = async (req, res) => {
         const { id: userId, friendId } = req.params;
 
         // search user by id
-        const user = await UsersModel.findById(userId);
+        let user = await UsersModel.findById(userId);
 
         // search friend by id
-        const friend = await UsersModel.findById(friendId);
-        
-        // check if friend included
-        if (user.friends.includes(friendId)) {
-            // new user list without friend
-            user.friends = user.friends.filter((id) => id !== friendId);
-            // new friend list without user
-            friend.friends = friend.friends.filter((id) => id !== userId)
-            // save both on db
-            await user.save();
-            await friend.save();
+        if (!user.friends.includes(friendId)) {
+            user = await UsersModel.findByIdAndUpdate(userId, { $push: { friends: friendId } }, { new: true})
+            await UsersModel.findByIdAndUpdate(friendId, { $push: { friends: userId } })
         } else {
-            // push friend in user-list
-            user.friends.push(friendId);
-            // push user in friend-list
-            friend.friends.push(userId)
+            user = await UsersModel.findByIdAndUpdate(userId,
+                { $pull: { friends: friendId } }, { new: true}
+            )
+            await UsersModel.findByIdAndUpdate(friendId,
+                { $pull: { friends: userId } }
+            )
         }
+        const friends = await UsersModel.find({ 
+            _id: { $in: user.friends } 
+        }, `_id firstName lastName email picturePath occupation location` ).lean()
+        // // check if friend included
+        // if (user.friends.includes(friendId)) {
+        //     // new user list without friend
+        //     user.friends = user.friends.filter((id) => id !== friendId);
+        //     // new friend list without user
+        //     friend.friends = friend.friends.filter((id) => id !== userId)
+        //     // save both on db
+        //     // await user.save();
+        //     // await friend.save();
+        // } else {
+        //     // push friend in user-list
+        //     user.friends.push(friendId);
+        //     // push user in friend-list
+        //     friend.friends.push(userId)
+        // }
             // save both on db
-            await user.save();
-            await friend.save();
+            // await user.save();
+            // await friend.save();
             
         // query all friends w/ aggregate function
         // const friends = await UsersModel.aggregate([
         //     { $match: { _id: { $in: user.friends } } }
         // ]);
-        const friends = await Promise.all(
-            user.friends.map((userId) => UsersModel.findById(userId))
-        );
+        // const friends = await Promise.all(
+        //     user.friends.map((userId) => UsersModel.findById(id))
+        // );
 
         // extract desired fields from each friend obj
-        const parsedFriends = friends.map(
-            ({
-                _id,
-                firstName,
-                lastName,
-                picturePath,
-                location,
-                occupation
-            }) => {
-                return {
-                    _id,
-                    firstName,
-                    lastName,
-                    picturePath,
-                    location,
-                    occupation
-                };
-            }
-        )
+        // const parsedFriends = friends.map(
+        //     ({
+        //         _id,
+        //         firstName,
+        //         lastName,
+        //         picturePath,
+        //         location,
+        //         occupation
+        //     }) => {
+        //         return {
+        //             _id,
+        //             firstName,
+        //             lastName,
+        //             picturePath,
+        //             location,
+        //             occupation
+        //         };
+        //     }
+        // )
 
-        res.status(200).json(parsedFriends);
+        res.status(200).json(friends);
     } catch(err) {
         res.status(404).json({
             message: `Error updating friend list - list not found: ${err.message}`
